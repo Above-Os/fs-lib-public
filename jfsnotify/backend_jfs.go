@@ -139,7 +139,9 @@ func (w *Watcher) start() {
 	w.initTask <- func() {
 		if w.fconn != nil {
 			klog.Info("send init clear signal")
-			data := PackageMsg(MSG_CLEAR, nil)
+			n := make([]byte, 255)
+			copy(n, []byte(w.name))
+			data := PackageMsg(MSG_CLEAR, n)
 			err := w.syncWrite(data) // send clear first when startup
 			if err != nil {
 				klog.Error("send clear error, ", err)
