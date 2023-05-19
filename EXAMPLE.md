@@ -45,7 +45,7 @@ import (
 )
 
 func main() {
-	watcher, err := jfsnotify.NewWatcher()
+	watcher, err := jfsnotify.NewWatcher("mywatcher")   // a single name of every watcher
 	if err != nil {
 		panic(err)
 	}
@@ -77,3 +77,10 @@ func main() {
 }
 ```
 
+### in clutser
+Set the env
+
+POD_NAME=your pod
+NAMESPACE=your namespace
+CONTAINER_NAME=your container in pod
+NOTIFY_SERVER=fsnotify proxy addr
