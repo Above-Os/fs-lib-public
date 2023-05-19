@@ -80,7 +80,9 @@ func main() {
 ### in clutser
 Set the env
 
+```
 POD_NAME=your pod
 NAMESPACE=your namespace
 CONTAINER_NAME=your container in pod
 NOTIFY_SERVER=fsnotify proxy addr
+```
