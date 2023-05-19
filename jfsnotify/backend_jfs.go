@@ -17,9 +17,11 @@ package jfsnotify
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -93,9 +95,10 @@ type Watcher struct {
 }
 
 var (
-	podName      = "default"
-	podNamespace = "default"
-	serverAddr   = "fsnotify-svc.os-system:1506"
+	podName       = "default"
+	podNamespace  = "default"
+	serverAddr    = "fsnotify-svc.os-system:1506"
+	containerName = "default"
 )
 
 func init() {
@@ -110,13 +113,18 @@ func init() {
 
 	getEnv(&podName, "POD_NAME", "HOSTNAME")
 	getEnv(&podNamespace, "NAMESPACE")
-	getEnv(&serverAddr, "NOTIFY_SERVE")
+	getEnv(&serverAddr, "NOTIFY_SERVER")
+	getEnv(&containerName, "CONTAINER_NAME")
 
 	klog.InitFlags(nil)
 }
 
 // NewWatcher creates a new Watcher.
-func NewWatcher() (*Watcher, error) {
+func NewWatcher(name string) (*Watcher, error) {
+	if strings.Contains(name, "/") {
+		return nil, errors.New("bad watcher name, illegal character '/'")
+	}
+
 	w := &Watcher{
 		Events:    make(chan Event),
 		Errors:    make(chan error),
@@ -124,7 +132,7 @@ func NewWatcher() (*Watcher, error) {
 		reconnect: make(chan int, 10),
 		sendQ:     make(chan []byte, 255),
 
-		name: fmt.Sprintf("%s/%s", podNamespace, podName),
+		name: fmt.Sprintf("%s/%s/%s", podName, containerName, name),
 	}
 
 	w.ctx, w.close = context.WithCancel(context.Background())
@@ -140,7 +148,7 @@ func (w *Watcher) start() {
 		if w.fconn != nil {
 			klog.Info("send init clear signal")
 			n := make([]byte, 255)
-			copy(n, []byte(w.name))
+			copy(n, []byte(podNamespace+"/"+w.name))
 			data := PackageMsg(MSG_CLEAR, n)
 			err := w.syncWrite(data) // send clear first when startup
 			if err != nil {
@@ -311,7 +319,7 @@ func (w *Watcher) send(watchType int, watches []string) error {
 	offset := 0
 
 	// first 255 byte, filled with watcher name
-	copy(data, []byte(w.name))
+	copy(data, []byte(podNamespace+"/"+w.name))
 	offset += 255
 
 	for _, s := range watches {
